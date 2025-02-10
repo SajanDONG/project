@@ -4,49 +4,229 @@
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Maze</title>
-  <link rel="stylesheet" href="./style.css">
+  <title>3D Maze Game</title>
+  <style>
+    body { margin: 0; }
+    canvas { display: block; }
+    #instructions { position: absolute; top: 20px; left: 20px; color: white; font-size: 20px; z-index: 10; }
+  </style>
+  <link rel="stylesheet" href="styl2.css">
 </head>
 <body>
-
   <div id="page">
-
-    <div id="Message-Container">
-      <div id="message">
-        <h1>Congratulations!</h1>
-        <p>You are done.</p>
-        <p id="moves"></p>
-        <input id="okBtn" type="button" onclick="toggleVisablity('Message-Container')" value="Cool!" />
-      </div>
-    </div>
-
-    <br>
     <div id="menu">
       <div class="custom-select">
         <select id="diffSelect">
-                  <option value="10">Easy</option>
-                  <option value="15">Medium</option>
-                  <option value="25">Hard</option>
-                  <option value="38">Extreme</option>                                      
-              </select>
+          <option value="10">Easy</option>
+          <option value="15">Medium</option>
+          <option value="25">Hard</option>
+          <option value="38">Extreme</option>
+        </select>
       </div>
-      <input id="startMazeBtn" type="button" onclick="makeMaze()" value="Start" />
+      <input id="startMazeBtn" type="button" onclick="startGame()" value="Start" />
     </div>
-
     <div id="view">
       <div id="mazeContainer">
-        <canvas id="mazeCanvas" class="border" height="1100" width="1100"></canvas>
+        <canvas id="mazeCanvas" width="800" height="600"></canvas>
       </div>
     </div>
-
-    <p id="instructions">Use arrow keys to move the key to the house!</p>
-
+    <p id="instructions">Use WASD or Arrow keys to move!</p>
   </div>
 
-  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery.touchswipe/1.6.18/jquery.touchSwipe.min.js"></script>
-  
+  <!-- Include Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/17/Stats.min.js"></script>
+   
+  <script>
+    let scene, camera, renderer, player, maze;
+    let clock = new THREE.Clock();
 
-  <script src="./js2.js"></script>
+    // Start the game
+    function startGame() {
+      init();
+      animate();
+    }
+    let mouseX = 0, mouseY = 0;
+let sensitivity = 0.1;  // Adjust sensitivity for smoother/rougher movement
+
+let rotationY = 0; // Store the rotation in variables to update incrementally
+let rotationX = 0;
+
+function init() {
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  renderer = new THREE.WebGLRenderer();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  // Maze dimensions
+  const mazeSize = 10;
+
+  // Create the maze
+  createMaze(mazeSize);
+  
+  // Set up player (a simple cube for the player)
+  player = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1, 0.5), new THREE.MeshBasicMaterial({ color: 0x00ff00 }));
+  player.position.set(mazeSize / 2, 0.5, mazeSize / 2);
+  scene.add(player);
+
+  // Set the camera position
+  camera.position.set(player.position.x, player.position.y + 1, player.position.z + 2);
+
+  // Add light
+  const light = new THREE.AmbientLight(0x404040);
+  scene.add(light);
+
+  // Event listeners
+  window.addEventListener('keydown', onKeyDown, false);
+  window.addEventListener('mousemove', onMouseMove, false);
+}
+
+// Mouse move handler to track cursor movement
+function onMouseMove(event) {
+  mouseX = (event.clientX / window.innerWidth) * 2 - 1;  // Normalize to range [-1, 1]
+  mouseY = (event.clientY / window.innerHeight) * 2 - 1; // Normalize to range [-1, 1]
+
+  // Apply rotation based on mouse movement with sensitivity adjustment
+  rotationY = mouseX * Math.PI * sensitivity; // Rotate around the Y-axis (left-right)
+  rotationX = -mouseY * Math.PI / 2 * sensitivity; // Rotate around the X-axis (up-down)
+
+  // Clamp the vertical rotation to prevent flipping upside-down
+  rotationX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, rotationX));
+}
+
+// Update function to apply the rotation to the camera
+function updateCameraRotation() {
+  camera.rotation.y = rotationY;  // Apply horizontal rotation (left-right)
+  camera.rotation.x = rotationX;  // Apply vertical rotation (up-down)
+}
+
+// Player movement logic
+function onKeyDown(event) {
+  if (event.key === "ArrowUp" || event.key === "w") {
+    player.position.z -= 0.1;
+  }
+  if (event.key === "ArrowDown" || event.key === "s") {
+    player.position.z += 0.1;
+  }
+  if (event.key === "ArrowLeft" || event.key === "a") {
+    player.position.x -= 0.1;
+  }
+  if (event.key === "ArrowRight" || event.key === "d") {
+    player.position.x += 0.1;
+  }
+
+  // Update camera position to follow the player
+  camera.position.set(player.position.x, player.position.y + 1, player.position.z + 2);
+}
+
+// Animation loop
+function animate() {
+  requestAnimationFrame(animate);  // Keep calling animate() to render the scene
+
+  // Set the camera's position to the player's position, and offset it slightly behind
+  camera.position.set(player.position.x, player.position.y + 1, player.position.z + 2);
+  
+  // Rotate the camera to match the player's current rotation (if player rotates)
+  camera.rotation.y = player.rotation.y;  // Match the player's horizontal rotation
+
+  // Optional: You can also control the vertical rotation of the camera (if needed)
+  camera.rotation.x = player.rotation.x;
+
+  // Render the scene from the camera's perspective
+  renderer.render(scene, camera);
+}
+
+window.onload = function() {
+  init();
+  animate();
+};
+
+
+    // Initialize Three.js
+    function init() {
+      scene = new THREE.Scene();
+     // camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(player.position.x, player.position.y + 1, player.position.z + 2);
+      camera.lookAt(player.position);
+
+      renderer = new THREE.WebGLRenderer();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+
+      // Maze dimensions
+      const mazeSize = 10; // Adjust based on difficulty
+
+      // Create the maze
+      createMaze(mazeSize);
+      // Set up player (a simple cube for the player)
+      player = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1, 0.5), new THREE.MeshBasicMaterial({ color: 0x00ff00 }));
+      player.position.set(mazeSize / 2, 0.5, mazeSize / 2);
+      scene.add(player);
+
+      // Camera position
+      camera.position.z = mazeSize * 2;
+
+      // Add light
+      const light = new THREE.AmbientLight(0x404040); // Ambient light
+      scene.add(light);
+
+      // Event listener for keypresses
+      window.addEventListener('keydown', onKeyDown, false);
+    }
+
+    // Generate the maze
+    function createMaze(size) {
+      maze = new THREE.Group();
+      let wallMaterial = new THREE.MeshBasicMaterial({ color: 0x888888, wireframe: true });
+
+      // Create the maze walls (this is a placeholder for maze generation logic)
+      for (let i = 0; i < size; i++) {
+        for (let j = 0; j < size; j++) {
+          if (Math.random() > 0.7) {
+            let wall = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), wallMaterial);
+            wall.position.set(i, 1, j);
+            maze.add(wall);
+          }
+        }
+      }
+
+      scene.add(maze);
+    }
+
+    // Handle keypress for movement (WASD or Arrow keys)
+    function onKeyDown(event) {
+      let speed = 0.1;
+      if (event.key === "ArrowUp" || event.key === "w") {
+        player.position.z -= speed;
+      }
+      if (event.key === "ArrowDown" || event.key === "s") {
+        player.position.z += speed;
+      }
+      if (event.key === "ArrowLeft" || event.key === "a") {
+        player.position.x -= speed;
+      }
+      if (event.key === "ArrowRight" || event.key === "d") {
+        player.position.x += speed;
+      }
+    }
+
+    // Animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+
+      let delta = clock.getDelta();
+      renderer.render(scene, camera);
+    }
+
+    // Handle resizing of the window
+    window.addEventListener('resize', onWindowResize, false);
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  </script>
 </body>
 </html>

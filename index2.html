@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Maze Game</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+    #instructions { position: absolute; top: 20px; left: 20px; color: white; font-size: 20px; z-index: 10; }
+    #menu { position: absolute; top: 20px; left: 20px; z-index: 10; }
+  </style>
+  <link rel="stylesheet" href="styl2.css">
+</head>
+<body>
+  <div id="page">
+    <div id="menu">
+      <div class="custom-select">
+        <select id="diffSelect">
+          <option value="10">Easy</option>
+          <option value="15">Medium</option>
+          <option value="25">Hard</option>
+          <option value="38">Extreme</option>
+        </select>
+      </div>
+      <input id="startMazeBtn" type="button" onclick="startGame()" value="Start" />
+    </div>
+    <div id="view">
+      <div id="mazeContainer">
+        <canvas id="mazeCanvas" width="800" height="600"></canvas>
+      </div>
+    </div>
+    <p id="instructions">Use WASD or Arrow keys to move!</p>
+  </div>
+
+  <!-- Include Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/17/Stats.min.js"></script>
+  <script src="j4.js"></script>
+  <script>
+    let scene, camera, renderer, player, maze;
+    let clock = new THREE.Clock();
+    let mazeSize = 10; // Default maze size
+    let moveSpeed = 0.1; // Player movement speed
+
+    // Start the game
+    function startGame() {
+      mazeSize = parseInt(document.getElementById('diffSelect').value);
+      init();
+      animate();
+    }
+
+    // Initialize Three.js and the scene
+    function init() {
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      renderer = new THREE.WebGLRenderer();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+
+      // Set up player (a simple cube for the player)
+      player = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1, 0.5), new THREE.MeshBasicMaterial({ color: 0x00ff00 }));
+      player.position.set(mazeSize / 2, 0.5, mazeSize / 2);
+      scene.add(player);
+
+      // Camera position
+      camera.position.z = mazeSize * 2;
+
+      // Add light
+      const light = new THREE.AmbientLight(0x404040); // Ambient light
+      scene.add(light);
+
+      // Create the maze
+      createMaze(mazeSize);
+
+      // Event listener for keypresses
+      window.addEventListener('keydown', onKeyDown, false);
+    }
+
+    // Generate the maze with simple random placement (replace with better maze algorithm)
+    function createMaze(size) {
+      maze = new THREE.Group();
+      let wallMaterial = new THREE.MeshBasicMaterial({ color: 0x888888, wireframe: true });
+
+      // Create the maze walls
+      for (let i = 0; i < size; i++) {
+        for (let j = 0; j < size; j++) {
+          if (Math.random() > 0.7) {
+            let wall = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), wallMaterial);
+            wall.position.set(i, 1, j);
+            maze.add(wall);
+          }
+        }
+      }
+      scene.add(maze);
+    }
+
+    // Handle keypress for movement (WASD or Arrow keys)
+    function onKeyDown(event) {
+      if (event.key === "ArrowUp" || event.key === "w") {
+        player.position.z -= moveSpeed;
+      }
+      if (event.key === "ArrowDown" || event.key === "s") {
+        player.position.z += moveSpeed;
+      }
+      if (event.key === "ArrowLeft" || event.key === "a") {
+        player.position.x -= moveSpeed;
+      }
+      if (event.key === "ArrowRight" || event.key === "d") {
+        player.position.x += moveSpeed;
+      }
+    }
+
+    // Update camera to smoothly follow the player
+    function updateCamera() {
+      let targetPosition = new THREE.Vector3(player.position.x, player.position.y + 2, player.position.z + mazeSize);
+      camera.position.lerp(targetPosition, 0.1); // Smooth transition to target position
+      camera.lookAt(player.position);
+    }
+
+    // Animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // Update camera position to follow player
+      updateCamera();
+
+      // Render the scene
+      let delta = clock.getDelta();
+      renderer.render(scene, camera);
+    }
+
+    // Handle resizing of the window
+    window.addEventListener('resize', onWindowResize, false);
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  </script>
+</body>
+</html>

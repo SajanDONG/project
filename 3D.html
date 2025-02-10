@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Maze Game</title>
+  <!-- <link rel="stylesheet" href="two.css"> -->
+</head>
+<body>
+  <div id="page">
+    <div id="menu">
+      <div class="custom-select">
+        <select id="diffSelect">
+          <option value="10">Easy</option>
+          <option value="15">Medium</option>
+          <option value="25">Hard</option>
+          <option value="38">Extreme</option>
+        </select>
+      </div>
+      <input id="startMazeBtn" type="button" onclick="startGame()" value="Start" />
+    </div>
+    <div id="view">
+      <div id="mazeContainer">
+        <canvas id="mazeCanvas" width="800" height="600"></canvas>
+      </div>
+    </div>
+    <p id="instructions">Use WASD or Arrow keys to move!</p>
+  </div>
+
+  <!-- Include Three.js library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/17/Stats.min.js"></script>
+  
+  <!-- GLTFLoader -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/loaders/GLTFLoader.min.js"></script>
+
+  <script src="3D.js"></script>
+</body>
+</html>
