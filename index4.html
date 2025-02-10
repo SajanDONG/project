@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>3D Maze Game with First-Person View</title>
+  <title>3D Maze Game with Minimap</title>
   <style>
     body {
       margin: 0;
@@ -30,6 +30,15 @@
       height: 200px;
       border: 2px solid #fff;
       background-color: #000;
+      z-index: 10;
+    }
+
+    #instructions {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      color: #fff;
+      font-size: 18px;
       z-index: 10;
     }
 
@@ -73,7 +82,6 @@
     let clock = new THREE.Clock();
     let mazeSize = 10;  // Default size (Easy)
     let moveSpeed = 0.1;
-    let lookSpeed = 0.05; // Speed for rotating the camera while moving
 
     // Game modes
     const gameModes = {
@@ -100,7 +108,7 @@
       document.getElementById('modeSelection').style.display = 'none';  // Hide mode selection
       init();
       createMaze(mazeSize);
-      player.position.set(mazeSize / 2, 1, mazeSize / 2);  // Set player to start at the center of the maze
+      player.position.set(mazeSize / 2, 0.5, mazeSize / 2);
       animate();
     }
 
@@ -115,16 +123,14 @@
       const light = new THREE.AmbientLight(0x404040);
       scene.add(light);
 
-      // Replace the green cube with a 3D sphere as the player object
+      // Create player cube
       player = new THREE.Mesh(
-        new THREE.SphereGeometry(0.5, 32, 32),  // Create a sphere instead of a cube
+        new THREE.BoxGeometry(0.5, 1, 0.5),
         new THREE.MeshBasicMaterial({ color: 0x00ff00 })
       );
-      player.position.set(mazeSize / 2, 1, mazeSize / 2);  // Start at the center of the maze
       scene.add(player);
 
-      // Camera follows the player in first-person view
-      camera.position.set(player.position.x, player.position.y + 1, player.position.z + 5); // Camera behind player
+      camera.position.set(mazeSize / 2, 2, mazeSize * 2);
       camera.lookAt(player.position);
 
       // Key events for player movement
@@ -152,6 +158,7 @@
 
     // Collision detection
     function checkCollision(newX, newZ) {
+      // Check if the new position overlaps any wall in the maze
       for (let i = 0; i < maze.children.length; i++) {
         let wall = maze.children[i];
         let wallPos = wall.position;
@@ -172,7 +179,6 @@
       let newX = player.position.x;
       let newZ = player.position.z;
 
-      // Moving the player
       if (event.key === "ArrowUp" || event.key === "w") {
         newZ -= moveSpeed;
       }
@@ -195,18 +201,19 @@
       // Keep the player within maze bounds
       player.position.x = Math.max(0, Math.min(mazeSize - 1, player.position.x));
       player.position.z = Math.max(0, Math.min(mazeSize - 1, player.position.z));
-
-      // Update camera position to follow the player
-      camera.position.x = player.position.x;
-      camera.position.z = player.position.z + 5; // Keep camera behind the player
-      camera.lookAt(player.position);
     }
 
     // Animation loop to update camera and render scene
     function animate() {
       requestAnimationFrame(animate);
 
+      // Update camera position
+      camera.position.x = player.position.x;
+      camera.position.z = player.position.z + mazeSize;
+      camera.lookAt(player.position);
+
       renderer.render(scene, camera);
+
       updateMinimap();
     }
 
