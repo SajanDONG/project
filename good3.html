@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3D Maze Game - First-Person View</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #000;
+      font-family: sans-serif;
+    }
+
+    #minimap {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 150px;
+      height: 150px;
+      border: 2px solid rgb(238, 236, 236);
+      background-color: black;
+      z-index: 10;
+      cursor: pointer;
+    }
+
+    #modeSelection {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      font-size: 18px;
+      z-index: 100;
+    }
+
+    #modeSelection button {
+      margin: 10px;
+      padding: 30px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color: #444;
+      color: #fff;
+      border:none;
+      border-radius: 5px;
+    }
+
+    #info {
+      position:absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 14px;
+      z-index: 100;
+    }
+
+    #mapOverlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 90%;
+      height: 90%;
+      background: rgba(0,0,0,0.9);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #bigMap {
+      width: 80vw;
+      height: 80vh;
+      border: 2px solid white;
+    }
+  </style>
+</head>
+<body>
+  <div id="modeSelection">
+    <p>Select Game Mode:</p>
+    <button id="easyBtn">Easy</button>
+    <button id="mediumBtn">Medium</button>
+    <button id="hardBtn">Hard</button>
+  </div>
+
+  <div id="info">Use WASD to move, Mouse to look</div>
+  <canvas id="minimap"></canvas>
+  <div id="mapOverlay">
+    <canvas id="bigMap"></canvas>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    let scene, camera, renderer, maze, start, end, minimapCtx, bigMapCtx;
+    let moveSpeed = 0.002;
+    let mazeSize = 10;
+    let keys = {};
+    let grid = [];
+    let mapOverlay = document.getElementById('mapOverlay');
+
+    const gameModes = { easy: 10, medium: 15, hard: 20 };
+
+    document.getElementById('easyBtn').onclick = () => startGame('easy');
+    document.getElementById('mediumBtn').onclick = () => startGame('medium');
+    document.getElementById('hardBtn').onclick = () => startGame('hard');
+
+    function startGame(mode) {
+      mazeSize = gameModes[mode];
+      document.getElementById('modeSelection').style.display = 'none';
+      init();
+      generateMaze();
+      animate();
+    }
+
+    function init() {
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 100);
+      renderer = new THREE.WebGLRenderer();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+
+      camera.position.set(1.5, 1.5, 1.5);
+      document.addEventListener("click", () => document.body.requestPointerLock());
+      document.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("keydown", (event) => keys[event.key.toLowerCase()] = true);
+      window.addEventListener("keyup", (event) => keys[event.key.toLowerCase()] = false);
+
+      minimapCtx = document.getElementById('minimap').getContext('2d');
+      bigMapCtx = document.getElementById('bigMap').getContext('2d');
+      document.getElementById('minimap').addEventListener('click', toggleMap);
+    }
+
+    function generateMaze() {
+      maze = new THREE.Group();
+      grid = Array(mazeSize).fill().map(() => Array(mazeSize).fill(0));
+      let wallMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+      for (let i = 0; i < mazeSize; i++) {
+        for (let j = 0; j < mazeSize; j++) {
+          const isBorder = i === 0 || j === 0 || i === mazeSize-1 || j === mazeSize-1;
+          const isStartEndArea = (i === 1 && j === 1) || (i === mazeSize-2 && j === mazeSize-2);
+          const isWall = (Math.random() > 0.7 || isBorder) && !isStartEndArea;
+
+          if (isWall) {
+            grid[i][j] = 1;
+            let wall = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), wallMaterial);
+            wall.position.set(i, 1, j);
+            maze.add(wall);
+          }
+        }
+      }
+
+      start = new THREE.Mesh(new THREE.BoxGeometry(1, 0.1, 1), new THREE.MeshBasicMaterial({ color: 0x00ff00 }));
+      start.position.set(1, 0.05, 1);
+      maze.add(start);
+
+      end = new THREE.Mesh(new THREE.BoxGeometry(1, 0.1, 1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+      end.position.set(mazeSize - 2, 0.05, mazeSize - 2);
+      maze.add(end);
+
+      scene.add(maze);
+    }
+
+    function drawMap(ctx, canvas) {
+      const cellSize = canvas.width / mazeSize;
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw walls
+      ctx.fillStyle = 'white';
+      for (let i = 0; i < mazeSize; i++) {
+        for (let j = 0; j < mazeSize; j++) {
+          if (grid[i][j] === 1) {
+            ctx.fillRect(i * cellSize, j * cellSize, cellSize, cellSize);
+          }
+        }
+      }
+
+      // Draw end point
+      ctx.fillStyle = 'red';
+      ctx.fillRect((mazeSize-2) * cellSize, (mazeSize-2) * cellSize, cellSize, cellSize);
+
+      // Draw player
+      ctx.fillStyle = 'lime';
+      const playerX = camera.position.x * cellSize;
+      const playerY = camera.position.z * cellSize;
+      ctx.beginPath();
+      ctx.arc(playerX, playerY, cellSize/3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function toggleMap() {
+      const isVisible = mapOverlay.style.display === 'flex';
+      mapOverlay.style.display = isVisible ? 'none' : 'flex';
+      if (!isVisible) {
+        const bigMap = document.getElementById('bigMap');
+        bigMap.width = bigMap.offsetWidth;
+        bigMap.height = bigMap.offsetHeight;
+      }
+    }
+
+    function checkCollision(newX, newZ) {
+      return grid[Math.round(newX)]?.[Math.round(newZ)] === 1;
+    }
+
+    function onMouseMove(event) {
+      if (document.pointerLockElement !== document.body) return;
+      let lookSpeed = 0.002;
+      camera.rotation.y -= event.movementX * lookSpeed;
+      camera.rotation.x -= event.movementY * lookSpeed;
+      camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x));
+    }
+
+    function updatePlayer() {
+      let direction = new THREE.Vector3();
+      camera.getWorldDirection(direction);
+      direction.y = 0;
+      direction.normalize();
+      let right = new THREE.Vector3().crossVectors(camera.up, direction).normalize();
+
+      let moveX = 0, moveZ = 0;
+      if (keys['w']) { moveX += direction.x * moveSpeed; moveZ += direction.z * moveSpeed; }
+      if (keys['s']) { moveX -= direction.x * moveSpeed; moveZ -= direction.z * moveSpeed; }
+      if (keys['a']) { moveX -= right.x * moveSpeed; moveZ -= right.z * moveSpeed; }
+      if (keys['d']) { moveX += right.x * moveSpeed; moveZ += right.z * moveSpeed; }
+
+      let newX = camera.position.x + moveX;
+      let newZ = camera.position.z + moveZ;
+
+      if (!checkCollision(newX, newZ)) {
+        camera.position.x = newX;
+        camera.position.z = newZ;
+      }
+
+      if (Math.abs(newX - end.position.x) < 0.5 && Math.abs(newZ - end.position.z) < 0.5) {
+        alert("You Win!");
+        location.reload();
+      }
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      updatePlayer();
+      renderer.render(scene, camera);
+      
+      // Draw minimap
+      const minimap = document.getElementById('minimap');
+      minimap.width = minimap.offsetWidth;
+      minimap.height = minimap.offsetHeight;
+      drawMap(minimapCtx, minimap);
+
+      // Update big map if visible
+      if (mapOverlay.style.display === 'flex') {
+        const bigMap = document.getElementById('bigMap');
+        drawMap(bigMapCtx, bigMap);
+      }
+    }
+  </script>
+</body>
+</html>
